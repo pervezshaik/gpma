@@ -7,6 +7,12 @@ aiofiles>=23.0.0
 
 # HTML parsing (optional but recommended)
 beautifulsoup4>=4.12.0
+lxml>=5.0.0  # Faster HTML parsing
+
+# Browser automation (recommended for web scraping)
+# Provides JavaScript rendering and anti-bot evasion
+playwright>=1.40.0
+# After installing, run: playwright install chromium
 
 # LLM Support (optional - install what you need)
 # OpenAI: pip install openai
@@ -14,9 +20,6 @@ beautifulsoup4>=4.12.0
 
 # Ollama is accessed via HTTP API, no extra package needed
 # Just install Ollama: https://ollama.ai
-
-# Optional: Browser automation
-# playwright>=1.40.0  # Uncomment for full browser automation
 
 # Optional: Advanced NLP
 # spacy>=3.7.0

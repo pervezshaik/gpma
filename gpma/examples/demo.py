@@ -64,7 +64,7 @@ async def demo_basic_usage():
         print("\n--- Asking a question ---")
         # Note: This will try to search the web
         result = await assistant.ask("What is Python programming language?")
-        print(f"Answer: {result[:200]}...")
+        print(f"Answer: {result[:2000]}...")
 
         # Use memory
         print("\n--- Using Memory ---")
