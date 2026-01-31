@@ -30,22 +30,36 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from gpma import PersonalAssistant, BaseAgent, AgentCapability, WebBrowserAgent
 from gpma.core.base_agent import TaskResult
+from gpma.llm import OllamaProvider
 
 
 # ============================================================================
-# DEMO 1: Basic Usage
+# DEMO 1: Basic Usage (with Ollama LLM)
 # ============================================================================
 
 async def demo_basic_usage():
     """
-    Demonstrates basic PersonalAssistant usage.
+    Demonstrates basic PersonalAssistant usage with Ollama LLM.
     """
     print("\n" + "="*60)
-    print("DEMO 1: Basic Usage")
+    print("DEMO 1: Basic Usage (with Ollama LLM)")
     print("="*60)
 
-    # Create and initialize the assistant
-    assistant = PersonalAssistant(name="MyAssistant")
+    # Create Ollama provider (uses local LLM)
+    try:
+        provider = OllamaProvider(model="llama3.1")
+        # Test connection
+        models = await provider.list_models()
+        print(f"\nOllama connected! Available models: {[m.get('name', '')[:20] for m in models[:5]]}")
+    except Exception as e:
+        print(f"\nOllama not available ({e}), running without LLM...")
+        provider = None
+
+    # Create and initialize the assistant with LLM
+    assistant = PersonalAssistant(
+        name="MyAssistant",
+        llm_provider=provider
+    )
     await assistant.initialize()
 
     try:
@@ -55,16 +69,22 @@ async def demo_basic_usage():
         print(f"  - Name: {status['name']}")
         print(f"  - Agents: {status['agents']}")
         print(f"  - Initialized: {status['initialized']}")
+        print(f"  - LLM Enabled: {provider is not None}")
 
         # List available agents
         agents = assistant.get_agents()
         print(f"\nAvailable Agents: {agents}")
 
-        # Ask a simple question (will route to appropriate agent)
-        print("\n--- Asking a question ---")
-        # Note: This will try to search the web
+        # Chat with LLM if available
+        if provider:
+            print("\n--- Chatting with LLM ---")
+            response = await assistant.chat("What is Python in 2 sentences?")
+            print(f"LLM Response: {response}")
+
+        # Ask a question (routes to best agent)
+        print("\n--- Asking a question (web search) ---")
         result = await assistant.ask("What is Python programming language?")
-        print(f"Answer: {result[:2000]}...")
+        print(f"Answer: {result[:1500]}...")
 
         # Use memory
         print("\n--- Using Memory ---")
@@ -78,6 +98,8 @@ async def demo_basic_usage():
 
     finally:
         await assistant.shutdown()
+        if provider:
+            await provider.close()
 
 
 # ============================================================================
