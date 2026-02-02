@@ -7,6 +7,7 @@ They are the "hands" of the agents - enabling them to interact with the world.
 Categories:
 - Web Tools: Fetching URLs, parsing HTML, web searches
 - File Tools: Reading, writing, managing files
+- Agentic Tools: Production-grade tools for agentic loops
 - System Tools: Running commands, system information
 """
 
@@ -27,6 +28,24 @@ from .file_tools import (
     FileManager,
 )
 
+from .agentic_tools import (
+    AgenticTool,
+    ToolRegistry,
+    SafeCalculator,
+    KnowledgeBase,
+    get_default_tools,
+    get_tool,
+    get_tools_by_category,
+    create_demo_tools,
+    safe_calculate,
+    search_knowledge,
+    web_search,
+    fetch_webpage,
+    read_file_content,
+    list_files,
+    auto_tool,
+)
+
 __all__ = [
     # Web tools
     'fetch_url',
@@ -41,4 +60,20 @@ __all__ = [
     'list_directory',
     'file_exists',
     'FileManager',
+    # Agentic tools
+    'AgenticTool',
+    'ToolRegistry',
+    'SafeCalculator',
+    'KnowledgeBase',
+    'get_default_tools',
+    'get_tool',
+    'get_tools_by_category',
+    'create_demo_tools',
+    'safe_calculate',
+    'search_knowledge',
+    'web_search',
+    'fetch_webpage',
+    'read_file_content',
+    'list_files',
+    'auto_tool',
 ]
