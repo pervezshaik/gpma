@@ -93,13 +93,26 @@ class Tool:
 
     Tools are the "hands" of an agent - they perform actual work.
 
-    Example:
+    NOTE: This is the legacy tool class. For new code, use BaseTool from
+    gpma.tools instead:
+
+        from gpma.tools import BaseTool, ToolParameter, registry
+
+    Example (legacy):
         tool = Tool(
             name="fetch_url",
             description="Fetches content from a URL",
             function=fetch_url_impl,
             parameters={"url": "The URL to fetch"}
         )
+
+    Example (new - recommended):
+        from gpma.tools import tool, ToolCategory
+
+        @tool(category=ToolCategory.WEB)
+        async def fetch_url(url: str) -> str:
+            '''Fetch content from a URL.'''
+            return await do_fetch(url)
     """
     name: str
     description: str
@@ -111,6 +124,40 @@ class Tool:
         if asyncio.iscoroutinefunction(self.function):
             return await self.function(**kwargs)
         return self.function(**kwargs)
+
+    @classmethod
+    def from_base_tool(cls, base_tool: "BaseTool") -> "Tool":
+        """
+        Create a legacy Tool from a new BaseTool.
+
+        This allows using the new centralized tool system with
+        agents that still expect the legacy Tool class.
+
+        Usage:
+            from gpma.tools import registry
+            from gpma.core.base_agent import Tool
+
+            base_tools = registry.get_all()
+            legacy_tools = [Tool.from_base_tool(t) for t in base_tools]
+        """
+        # Convert parameters
+        params = {}
+        for param in base_tool.parameters:
+            params[param.name] = param.description
+
+        return cls(
+            name=base_tool.name,
+            description=base_tool.description,
+            function=base_tool.function,
+            parameters=params
+        )
+
+
+# Type alias for BaseTool to avoid circular import
+try:
+    from ..tools.base import BaseTool
+except ImportError:
+    BaseTool = None  # Not available
 
 
 @dataclass
@@ -157,12 +204,25 @@ class BaseAgent(ABC):
             return TaskResult(success=True, data=result)
     """
 
-    def __init__(self, name: str = None):
+    def __init__(self, name: str = None, tools: List["Tool"] = None):
         """
         Initialize the agent.
 
         Args:
             name: Unique identifier for this agent instance
+            tools: Optional list of tools to inject. Can be:
+                   - List of legacy Tool objects
+                   - List of new BaseTool objects (will be converted)
+                   - None to use no tools initially
+
+        Example with tool injection:
+            from gpma.tools import registry
+
+            # Get tools from registry
+            tools = registry.get_all()
+
+            # Create agent with injected tools
+            agent = MyAgent(tools=tools)
         """
         self.id = str(uuid.uuid4())[:8]
         self.name = name or f"{self.__class__.__name__}_{self.id}"
@@ -178,6 +238,10 @@ class BaseAgent(ABC):
 
         # Message bus reference (set by orchestrator)
         self.message_bus = None
+
+        # Register injected tools
+        if tools:
+            self.inject_tools(tools)
 
         logger.info(f"Agent created: {self.name}")
 
@@ -236,6 +300,78 @@ class BaseAgent(ABC):
         """
         self._tools[tool.name] = tool
         logger.debug(f"Tool registered: {tool.name} on {self.name}")
+
+    def inject_tools(self, tools: List[Any]) -> None:
+        """
+        Inject multiple tools into this agent.
+
+        Supports both legacy Tool objects and new BaseTool objects.
+        BaseTool objects are automatically converted to legacy Tool format.
+
+        Args:
+            tools: List of Tool or BaseTool objects
+
+        Example:
+            from gpma.tools import registry
+
+            # Inject all tools from registry
+            agent.inject_tools(registry.get_all())
+
+            # Or inject specific tools
+            agent.inject_tools([
+                registry.get("calculator"),
+                registry.get("web_search")
+            ])
+        """
+        for t in tools:
+            # Check if it's a new BaseTool (has 'parameters' as list)
+            if hasattr(t, 'parameters') and isinstance(t.parameters, list):
+                # Convert BaseTool to legacy Tool
+                legacy_tool = Tool.from_base_tool(t)
+                self.register_tool(legacy_tool)
+            else:
+                # It's already a legacy Tool
+                self.register_tool(t)
+
+    def inject_tools_from_registry(
+        self,
+        tool_names: List[str] = None,
+        category: str = None
+    ) -> None:
+        """
+        Inject tools directly from the global registry.
+
+        Args:
+            tool_names: Optional list of specific tool names to inject
+            category: Optional category to filter tools
+
+        Example:
+            # Inject specific tools
+            agent.inject_tools_from_registry(["calculator", "web_search"])
+
+            # Inject all tools in a category
+            agent.inject_tools_from_registry(category="web")
+
+            # Inject all tools
+            agent.inject_tools_from_registry()
+        """
+        try:
+            from ..tools import registry, ToolCategory
+
+            if tool_names:
+                tools = [registry.get(name) for name in tool_names]
+                tools = [t for t in tools if t is not None]
+            elif category:
+                cat = ToolCategory(category) if isinstance(category, str) else category
+                tools = registry.get_by_category(cat)
+            else:
+                tools = registry.get_all()
+
+            self.inject_tools(tools)
+            logger.info(f"Injected {len(tools)} tools into {self.name}")
+
+        except ImportError as e:
+            logger.warning(f"Could not import tools registry: {e}")
 
     async def use_tool(self, tool_name: str, **kwargs) -> Any:
         """

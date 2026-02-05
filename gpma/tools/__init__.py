@@ -1,73 +1,174 @@
 """
 GPMA Tools Module
 
-Tools are reusable functions that agents can invoke to perform actions.
-They are the "hands" of the agents - enabling them to interact with the world.
+Centralized tool system for agents. All tools are defined using a unified
+BaseTool class and managed through a central ToolRegistry.
+
+Quick Start:
+    from gpma.tools import registry, tool, ToolCategory
+
+    # Get all available tools
+    tools = registry.get_all()
+
+    # Get tools by category
+    web_tools = registry.get_by_category(ToolCategory.WEB)
+
+    # Create a custom tool
+    @tool(description="My custom tool", category=ToolCategory.CUSTOM)
+    async def my_tool(param: str) -> str:
+        '''Do something.
+
+        Args:
+            param: A parameter
+        '''
+        return f"Result: {param}"
+
+Architecture:
+    - BaseTool: Unified tool class with validation, timeout, stats
+    - ToolRegistry: Central singleton for tool management
+    - @tool decorator: Easy tool creation from functions
+    - Adapters: Convert to OpenAI/Anthropic formats
 
 Categories:
-- Web Tools: Fetching URLs, parsing HTML, web searches
-- File Tools: Reading, writing, managing files
-- Agentic Tools: Production-grade tools for agentic loops
-- System Tools: Running commands, system information
+    - WEB: Web fetching, searching, parsing
+    - FILE: File operations (read, write, list)
+    - MATH: Calculator and math functions
+    - SEARCH: Knowledge base and web search
+    - SYSTEM: System operations
+    - DATA: Data processing
+    - CUSTOM: User-defined tools
 """
 
-from .web_tools import (
-    fetch_url,
-    parse_html,
-    extract_links,
-    extract_text,
-    search_web,
-    WebFetcher,
+# Core classes
+from .base import (
+    BaseTool,
+    ToolParameter,
+    ToolResult,
+    ToolResultStatus,
+    ToolCategory,
 )
 
-from .file_tools import (
-    read_file,
-    write_file,
-    list_directory,
-    file_exists,
-    FileManager,
-)
-
-from .agentic_tools import (
-    AgenticTool,
+# Registry
+from .registry import (
     ToolRegistry,
-    SafeCalculator,
-    KnowledgeBase,
-    get_default_tools,
+    registry,
+    register,
     get_tool,
+    get_all_tools,
     get_tools_by_category,
-    create_demo_tools,
-    safe_calculate,
-    search_knowledge,
-    web_search,
-    fetch_webpage,
-    read_file_content,
-    list_files,
-    auto_tool,
+    get_default_tools,
+    execute_tool,
 )
+
+# Decorators
+from .decorators import (
+    tool,
+    simple_tool,
+    ToolBuilder,
+)
+
+# Adapters
+from .adapters import (
+    to_openai_format,
+    to_anthropic_format,
+    OpenAIToolAdapter,
+    AnthropicToolAdapter,
+)
+
+# Legacy imports for backward compatibility
+# These import from the old modules that still exist
+try:
+    from .web_tools import (
+        fetch_url,
+        parse_html,
+        extract_links,
+        extract_text,
+        search_web,
+        WebFetcher,
+    )
+except ImportError:
+    pass
+
+try:
+    from .file_tools import (
+        read_file,
+        write_file,
+        list_directory,
+        file_exists,
+        FileManager,
+    )
+except ImportError:
+    pass
+
+# Legacy agentic tools exports
+try:
+    from .agentic_tools import (
+        AgenticTool,
+        SafeCalculator,
+        KnowledgeBase,
+        create_demo_tools,
+        safe_calculate,
+        search_knowledge,
+        web_search,
+        fetch_webpage,
+        read_file_content,
+        list_files,
+        auto_tool,
+    )
+    # Also re-export as ToolRegistry for backward compat
+    from .agentic_tools import ToolRegistry as LegacyToolRegistry
+except ImportError:
+    pass
+
 
 __all__ = [
-    # Web tools
+    # Core
+    'BaseTool',
+    'ToolParameter',
+    'ToolResult',
+    'ToolResultStatus',
+    'ToolCategory',
+
+    # Registry
+    'ToolRegistry',
+    'registry',
+    'register',
+    'get_tool',
+    'get_all_tools',
+    'get_tools_by_category',
+    'get_default_tools',
+    'execute_tool',
+
+    # Decorators
+    'tool',
+    'simple_tool',
+    'ToolBuilder',
+
+    # Adapters
+    'to_openai_format',
+    'to_anthropic_format',
+    'OpenAIToolAdapter',
+    'AnthropicToolAdapter',
+
+    # Legacy web tools
     'fetch_url',
     'parse_html',
     'extract_links',
     'extract_text',
     'search_web',
     'WebFetcher',
-    # File tools
+
+    # Legacy file tools
     'read_file',
     'write_file',
     'list_directory',
     'file_exists',
     'FileManager',
-    # Agentic tools
+
+    # Legacy agentic tools
     'AgenticTool',
-    'ToolRegistry',
     'SafeCalculator',
     'KnowledgeBase',
-    'get_default_tools',
-    'get_tool',
-    'get_tools_by_category',
     'create_demo_tools',
     'safe_calculate',
     'search_knowledge',
